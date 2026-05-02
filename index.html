@@ -31,7 +31,6 @@
     <div id="map"></div>
 
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-
     <script src="https://unpkg.com/esri-leaflet@3.0.19/dist/esri-leaflet.js"></script>
 
 
@@ -63,7 +62,18 @@
             url: 'https://tiledimageservices.arcgis.com/YseQBnl2jq0lrUV5/arcgis/rest/services/Snow_Master_Final_2/ImageServer',
             opacity: 0.7 // Adjusted so points are easier to see
         }).addTo(map);
+		var slider = document.getElementById('slider');
+		var label = document.getElementById('time-label');
 
+		slider.addEventListener('input', function() {
+			var year = this.value;
+			label.innerHTML = "Year: " + year;
+    
+			// Updates the ArcGIS layer to the selected year
+			var start = new Date(year + '-01-01');
+			var end = new Date(year + '-12-31');
+			snowLayer.setTimeRange(start, end);
+		});
         // 4. State Boundaries (GeoJSON)
         fetch('CO_NM_Dissolve.geojson')
             .then(res => res.json())
