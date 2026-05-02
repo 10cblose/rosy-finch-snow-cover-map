@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>IMS Snow Cover and Rosy-Finch Ocurrence</title>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="https://unpkg.com" />
+    <style>
+        body { margin: 0; padding: 0; font-family: Arial, sans-serif; }
+        #map { position: absolute; top: 0; bottom: 0; width: 100%; }
+		/* UI Control Panel for Subtitle and Slider */
+        .map-overlay {
+            position: absolute; top: 10px; left: 50px; z-index: 1000;
+            background: rgba(255, 255, 255, 0.9);
+            padding: 15px; border-radius: 8px; border: 1px solid #ccc;
+            width: 250px; box-shadow: 0 0 15px rgba(0,0,0,0.2);
+        }
+        .subtitle { font-style: italic; font-size: 0.9em; color: #555; }
+        #time-label { font-weight: bold; font-size: 1.1em; display: block; margin-top: 10px; }
+        #slider { width: 100%; cursor: pointer; margin-top: 5px; }
+    </style>
+</head>
+<body>
+
+    <div class="map-overlay">
+		<strong>IMS Snow Cover and Rosy-Finch Occurrence</strong><br>
+		<span class="subtitle">Colorado & New Mexico Banding Locations - NOAA IMS 4km/1km</span>
+		<label id="time-label">Year: 2026</label>
+		<input id="slider" type="range" min="2006" max="2026" value="2026" step="1">
+	</div>
+    <div id="map"></div>
+
+    <script src="https://unpkg.com"></script>
+    <script src="https://unpkg.com"></script>
+
+    <script>
+		// 1. Initialize Map with zoom and boundary constraints
+        var map = L.map('map', {
+			center: [37.5, -106], // Starting point (CO/NM border)
+			zoom: 6,              // Starting zoom level
+			minZoom: 5,           // STOPS zoom at the multiple state level
+			maxZoom: 10,          // STOPS zoom at the county level
+			// Restricts how far a user can "pan" away from the area
+			maxBounds: [[31, -112], [42, -100]], 
+			maxBoundsViscosity: 1.0
+		});
+
+		// 2. Add the Scale Bar to the bottom left
+		L.control.scale({
+			imperial: true, // Shows miles
+			metric: true    // Shows kilometers
+		}).addTo(map);
+
+        // 2. Basemap
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '&copy; OpenStreetMap'
+        }).addTo(map);
+
+        // 3. Snow Master CRF Layer (Tiled)
+        var snowLayer = L.esri.tiledMapLayer({
+            url: 'https://tiledimageservices.arcgis.com/YseQBnl2jq0lrUV5/arcgis/rest/services/Snow_Master_Final_2/ImageServer',
+            opacity: 0.7 // Adjusted so points are easier to see
+        }).addTo(map);
+
+        // 4. State Boundaries (GeoJSON)
+        fetch('CO_NM_Dissolve.geojson')
+            .then(res => res.json())
+            .then(data => {
+                L.geoJSON(data, {
+                    style: { color: 'red', weight: 2, fillOpacity: 0, interactive: false }
+                }).addTo(map);
+            });
+
+        // 5. Species Points (Grouping 10,000 rows into 25 locations)
+        fetch('RosyFinches_CO_NM.geojson')
+            .then(res => res.json())
+            .then(data => {
+                const locationMap = {};
+
+                data.features.forEach(f => {
+                    // Pulling directly from your converted GeoJSON properties
+                    const lat = parseFloat(f.properties.lat_dd);
+                    const lon = parseFloat(f.properties.long_dd);
+                    const species = f.properties.species_name || "Unknown";
+                    const key = `${lat},${lon}`;
+
+                    if (!locationMap[key]) {
+                        locationMap[key] = { lat, lon, counts: {} };
+                    }
+                    locationMap[key].counts[species] = (locationMap[key].counts[species] || 0) + 1;
+                });
+
+                // Draw the 25 unique markers
+                Object.values(locationMap).forEach(loc => {
+                    var marker = L.circleMarker([loc.lat, loc.lon], {
+                        radius: 10,
+                        fillColor: "#3498db",
+                        color: "#fff",
+                        weight: 2,
+                        fillOpacity: 0.9
+                    }).addTo(map);
+
+                    let popup = `<b>Location Totals:</b><hr>`;
+                    for (const [name, count] of Object.entries(loc.counts)) {
+                        popup += `<b>${name}:</b> ${count.toLocaleString()}<br>`;
+                    }
+                    marker.bindPopup(popup);
+                });
+            })
+            .catch(err => console.error("Error loading points:", err));
+
+    </script>
+</body>
+</html>
