@@ -93,6 +93,9 @@
                     // Pulling directly from your converted GeoJSON properties
                     const lat = parseFloat(f.properties.lat_dd);
                     const lon = parseFloat(f.properties.long_dd);
+					if (isNaN(lat) || isNaN(lon)) {
+						return; // This ignores the 'NaN' error and continues to the next point
+					}
                     const species = f.properties.species_name || "Unknown";
                     const key = `${lat},${lon}`;
 
